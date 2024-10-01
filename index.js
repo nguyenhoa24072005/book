@@ -22,7 +22,7 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-const collection = db.collection("Book movie tickets");
+const collection = db.collection("movies");
 
 // 1. Tạo đặt vé mới: POST
 app.post("/bookings", async (req, res) => {
