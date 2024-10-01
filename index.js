@@ -1,29 +1,28 @@
 const express = require("express");
 const admin = require("firebase-admin");
-const cors = require("cors"); // Thêm middleware CORS
-require("dotenv").config(); // Nạp biến môi trường từ file .env
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
-app.use(express.json()); // Để đọc dữ liệu JSON từ request body
+app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3000", // Cho phép nguồn từ localhost:3000
+    origin: "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
-); // Bật CORS cho tất cả các route
+);
 
-// Khởi tạo SDK Firebase
 admin.initializeApp({
   credential: admin.credential.cert({
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"), // Xử lý ký tự xuống dòng
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     projectId: process.env.FIREBASE_PROJECT_ID,
   }),
 });
 
 const db = admin.firestore();
-const collection = db.collection("Book movie tickets"); // Collection "bookings" trong Firestore
+const collection = db.collection("Book movie tickets");
 
 // 1. Tạo đặt vé mới: POST
 app.post("/bookings", async (req, res) => {
@@ -87,6 +86,55 @@ app.delete("/bookings/:id", async (req, res) => {
     res.status(200).send("Booking deleted successfully");
   } catch (error) {
     res.status(500).send("Error deleting booking: " + error.message);
+  }
+});
+
+// 6. Tính tổng số vé đã đặt: GET /bookings/total
+app.get("/bookings/total", async (req, res) => {
+  try {
+    const snapshot = await collection.get();
+    const totalBookings = snapshot.size;
+    res.status(200).json({ totalBookings });
+  } catch (error) {
+    res.status(500).send("Error fetching total bookings: " + error.message);
+  }
+});
+
+// 7. Đọc đặt vé theo tên phim: GET /bookings/movie/:movieName
+app.get("/bookings/movie/:movieName", async (req, res) => {
+  try {
+    const movieName = req.params.movieName;
+    const snapshot = await collection.where("movieName", "==", movieName).get();
+
+    if (snapshot.empty) {
+      return res.status(404).send("No bookings found for this movie");
+    }
+
+    const bookings = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).send("Error fetching bookings: " + error.message);
+  }
+});
+
+// 8. Hủy đặt vé theo ID: DELETE /bookings/cancel/:id
+app.delete("/bookings/cancel/:id", async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const bookingDoc = await collection.doc(bookingId).get();
+
+    if (!bookingDoc.exists) {
+      return res.status(404).send("Booking not found");
+    }
+
+    await collection.doc(bookingId).delete();
+    res.status(200).send("Booking canceled successfully");
+  } catch (error) {
+    res.status(500).send("Error canceling booking: " + error.message);
   }
 });
 
