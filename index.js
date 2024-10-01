@@ -23,7 +23,7 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-const collection = db.collection("bookings"); // Collection "bookings" trong Firestore
+const collection = db.collection("Book movie tickets"); // Collection "bookings" trong Firestore
 
 // 1. Tạo đặt vé mới: POST
 app.post("/bookings", async (req, res) => {
@@ -31,7 +31,9 @@ app.post("/bookings", async (req, res) => {
     const { movieName, userName, seatNumber, showTime } = req.body;
     const booking = { movieName, userName, seatNumber, showTime };
     const docRef = await collection.add(booking);
-    res.status(201).send({ id: docRef.id, message: "Booking created successfully" });
+    res
+      .status(201)
+      .send({ id: docRef.id, message: "Booking created successfully" });
   } catch (error) {
     res.status(500).send("Error creating booking: " + error.message);
   }
@@ -41,10 +43,15 @@ app.post("/bookings", async (req, res) => {
 app.get("/bookings", async (req, res) => {
   try {
     const snapshot = await collection.get();
-    const bookings = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const bookings = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
     res.status(200).json(bookings);
   } catch (error) {
-    res.status(500).json({ error: "Error fetching bookings", details: error.message });
+    res
+      .status(500)
+      .json({ error: "Error fetching bookings", details: error.message });
   }
 });
 
