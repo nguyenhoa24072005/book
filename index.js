@@ -7,12 +7,13 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "http://localhost:3000", // Địa chỉ frontend của bạn
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// Khởi tạo Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert({
     privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -22,12 +23,18 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-const collection = db.collection("moviess");
+const collection = db.collection("moviess"); // Đổi thành "bookings" nếu đó là tên bộ sưu tập bạn đang dùng
 
 // 1. Tạo đặt vé mới: POST
 app.post("/bookings", async (req, res) => {
   try {
     const { movieName, userName, seatNumber, showTime } = req.body;
+
+    // Kiểm tra dữ liệu đầu vào
+    if (!movieName || !userName || !seatNumber || !showTime) {
+      return res.status(400).send("All fields are required");
+    }
+
     const booking = { movieName, userName, seatNumber, showTime };
     const docRef = await collection.add(booking);
     res
@@ -71,6 +78,12 @@ app.get("/bookings/:id", async (req, res) => {
 app.put("/bookings/:id", async (req, res) => {
   try {
     const { movieName, userName, seatNumber, showTime } = req.body;
+
+    // Kiểm tra dữ liệu đầu vào
+    if (!movieName && !userName && !seatNumber && !showTime) {
+      return res.status(400).send("At least one field is required for update");
+    }
+
     const updatedBooking = { movieName, userName, seatNumber, showTime };
     await collection.doc(req.params.id).update(updatedBooking);
     res.status(200).send("Booking updated successfully");
@@ -82,6 +95,10 @@ app.put("/bookings/:id", async (req, res) => {
 // 5. Xóa đặt vé theo ID: DELETE/id
 app.delete("/bookings/:id", async (req, res) => {
   try {
+    const bookingDoc = await collection.doc(req.params.id).get();
+    if (!bookingDoc.exists) {
+      return res.status(404).send("Booking not found");
+    }
     await collection.doc(req.params.id).delete();
     res.status(200).send("Booking deleted successfully");
   } catch (error) {
