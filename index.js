@@ -41,6 +41,7 @@ app.post("/bookings", async (req, res) => {
       .status(201)
       .send({ id: docRef.id, message: "Booking created successfully" });
   } catch (error) {
+    console.error("Error creating booking:", error); // Log lỗi
     res.status(500).send("Error creating booking: " + error.message);
   }
 });
@@ -53,8 +54,11 @@ app.get("/bookings", async (req, res) => {
       id: doc.id,
       ...doc.data(),
     }));
+
+    console.log("Fetched bookings:", bookings); // Log dữ liệu đã lấy
     res.status(200).json(bookings);
   } catch (error) {
+    console.error("Error fetching bookings:", error); // Log lỗi
     res
       .status(500)
       .json({ error: "Error fetching bookings", details: error.message });
@@ -70,6 +74,7 @@ app.get("/bookings/:id", async (req, res) => {
     }
     res.status(200).json({ id: doc.id, ...doc.data() });
   } catch (error) {
+    console.error("Error fetching booking:", error); // Log lỗi
     res.status(500).send("Error fetching booking: " + error.message);
   }
 });
@@ -88,6 +93,7 @@ app.put("/bookings/:id", async (req, res) => {
     await collection.doc(req.params.id).update(updatedBooking);
     res.status(200).send("Booking updated successfully");
   } catch (error) {
+    console.error("Error updating booking:", error); // Log lỗi
     res.status(500).send("Error updating booking: " + error.message);
   }
 });
@@ -102,6 +108,7 @@ app.delete("/bookings/:id", async (req, res) => {
     await collection.doc(req.params.id).delete();
     res.status(200).send("Booking deleted successfully");
   } catch (error) {
+    console.error("Error deleting booking:", error); // Log lỗi
     res.status(500).send("Error deleting booking: " + error.message);
   }
 });
@@ -113,6 +120,7 @@ app.get("/bookings/total", async (req, res) => {
     const totalBookings = snapshot.size;
     res.status(200).json({ totalBookings });
   } catch (error) {
+    console.error("Error fetching total bookings:", error); // Log lỗi
     res.status(500).send("Error fetching total bookings: " + error.message);
   }
 });
@@ -132,8 +140,10 @@ app.get("/bookings/movie/:movieName", async (req, res) => {
       ...doc.data(),
     }));
 
+    console.log("Fetched bookings for movie:", movieName, bookings); // Log dữ liệu đã lấy
     res.status(200).json(bookings);
   } catch (error) {
+    console.error("Error fetching bookings:", error); // Log lỗi
     res.status(500).send("Error fetching bookings: " + error.message);
   }
 });
@@ -151,6 +161,7 @@ app.delete("/bookings/cancel/:id", async (req, res) => {
     await collection.doc(bookingId).delete();
     res.status(200).send("Booking canceled successfully");
   } catch (error) {
+    console.error("Error canceling booking:", error); // Log lỗi
     res.status(500).send("Error canceling booking: " + error.message);
   }
 });
