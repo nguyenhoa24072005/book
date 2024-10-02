@@ -23,7 +23,7 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-const collection = db.collection("movies"); // Bộ sưu tập chứa thông tin phim
+const collection = db.collection("movieId_1"); // Bộ sưu tập chứa thông tin phim
 
 // 1. Đặt vé: POST
 app.post("/bookings/:movieId", async (req, res) => {
