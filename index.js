@@ -23,146 +23,67 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
-const collection = db.collection("moviess"); // Đổi thành "bookings" nếu đó là tên bộ sưu tập bạn đang dùng
+const collection = db.collection("movies"); // Bộ sưu tập chứa thông tin phim
 
-// 1. Tạo đặt vé mới: POST
-app.post("/bookings", async (req, res) => {
+// 1. Đặt vé: POST
+app.post("/bookings/:movieId", async (req, res) => {
+  const { seatNumber, userName } = req.body;
+
+  // Kiểm tra dữ liệu đầu vào
+  if (!seatNumber || !userName) {
+    return res.status(400).send("Seat number and user name are required");
+  }
+
   try {
-    const { movieName, userName, seatNumber, showTime } = req.body;
+    const movieRef = collection.doc(req.params.movieId);
+    const movieDoc = await movieRef.get();
 
-    // Kiểm tra dữ liệu đầu vào
-    if (!movieName || !userName || !seatNumber || !showTime) {
-      return res.status(400).send("All fields are required");
+    if (!movieDoc.exists) {
+      return res.status(404).send("Movie not found");
     }
 
-    const booking = { movieName, userName, seatNumber, showTime };
-    const docRef = await collection.add(booking);
-    res
-      .status(201)
-      .send({ id: docRef.id, message: "Booking created successfully" });
-  } catch (error) {
-    console.error("Error creating booking:", error); // Log lỗi
-    res.status(500).send("Error creating booking: " + error.message);
-  }
-});
+    const movieData = movieDoc.data();
+    const seats = movieData.seats;
 
-// 2. Đọc tất cả đặt vé: GET
-app.get("/bookings", async (req, res) => {
-  try {
-    const snapshot = await collection.get();
-    const bookings = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    console.log("Fetched bookings:", bookings); // Log dữ liệu đã lấy
-    res.status(200).json(bookings);
-  } catch (error) {
-    console.error("Error fetching bookings:", error); // Log lỗi
-    res
-      .status(500)
-      .json({ error: "Error fetching bookings", details: error.message });
-  }
-});
-
-// 3. Đọc đặt vé theo ID: GET/id
-app.get("/bookings/:id", async (req, res) => {
-  try {
-    const doc = await collection.doc(req.params.id).get();
-    if (!doc.exists) {
-      return res.status(404).send("Booking not found");
+    // Kiểm tra trạng thái ghế
+    const seat = seats.find((s) => s.seatNumber === seatNumber);
+    if (!seat) {
+      return res.status(404).send("Seat not found");
     }
-    res.status(200).json({ id: doc.id, ...doc.data() });
-  } catch (error) {
-    console.error("Error fetching booking:", error); // Log lỗi
-    res.status(500).send("Error fetching booking: " + error.message);
-  }
-});
-
-// 4. Cập nhật đặt vé theo ID: PUT/id
-app.put("/bookings/:id", async (req, res) => {
-  try {
-    const { movieName, userName, seatNumber, showTime } = req.body;
-
-    // Kiểm tra dữ liệu đầu vào
-    if (!movieName && !userName && !seatNumber && !showTime) {
-      return res.status(400).send("At least one field is required for update");
+    if (seat.isBooked) {
+      return res.status(400).send("Seat is already booked");
     }
 
-    const updatedBooking = { movieName, userName, seatNumber, showTime };
-    await collection.doc(req.params.id).update(updatedBooking);
-    res.status(200).send("Booking updated successfully");
+    // Đặt ghế
+    seat.isBooked = true;
+    await movieRef.update({ seats });
+
+    res.status(201).send("Seat booked successfully");
+
+    // Hủy đặt ghế nếu không thanh toán trong 10 phút (giả lập)
+    setTimeout(async () => {
+      seat.isBooked = false;
+      await movieRef.update({ seats });
+      console.log(`Seat ${seatNumber} has been released after 10 minutes`);
+    }, 10 * 60 * 1000); // 10 phút
   } catch (error) {
-    console.error("Error updating booking:", error); // Log lỗi
-    res.status(500).send("Error updating booking: " + error.message);
+    console.error("Error booking seat:", error);
+    res.status(500).send("Error booking seat: " + error.message);
   }
 });
 
-// 5. Xóa đặt vé theo ID: DELETE/id
-app.delete("/bookings/:id", async (req, res) => {
+// 2. Đọc thông tin ghế của một phim: GET
+app.get("/movies/:id/seats", async (req, res) => {
   try {
-    const bookingDoc = await collection.doc(req.params.id).get();
-    if (!bookingDoc.exists) {
-      return res.status(404).send("Booking not found");
+    const movieDoc = await collection.doc(req.params.id).get();
+    if (!movieDoc.exists) {
+      return res.status(404).send("Movie not found");
     }
-    await collection.doc(req.params.id).delete();
-    res.status(200).send("Booking deleted successfully");
+    const { seats } = movieDoc.data();
+    res.status(200).json(seats);
   } catch (error) {
-    console.error("Error deleting booking:", error); // Log lỗi
-    res.status(500).send("Error deleting booking: " + error.message);
-  }
-});
-
-// 6. Tính tổng số vé đã đặt: GET /bookings/total
-app.get("/bookings/total", async (req, res) => {
-  try {
-    const snapshot = await collection.get();
-    const totalBookings = snapshot.size;
-    res.status(200).json({ totalBookings });
-  } catch (error) {
-    console.error("Error fetching total bookings:", error); // Log lỗi
-    res.status(500).send("Error fetching total bookings: " + error.message);
-  }
-});
-
-// 7. Đọc đặt vé theo tên phim: GET /bookings/movie/:movieName
-app.get("/bookings/movie/:movieName", async (req, res) => {
-  try {
-    const movieName = req.params.movieName;
-    const snapshot = await collection.where("movieName", "==", movieName).get();
-
-    if (snapshot.empty) {
-      return res.status(404).send("No bookings found for this movie");
-    }
-
-    const bookings = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    console.log("Fetched bookings for movie:", movieName, bookings); // Log dữ liệu đã lấy
-    res.status(200).json(bookings);
-  } catch (error) {
-    console.error("Error fetching bookings:", error); // Log lỗi
-    res.status(500).send("Error fetching bookings: " + error.message);
-  }
-});
-
-// 8. Hủy đặt vé theo ID: DELETE /bookings/cancel/:id
-app.delete("/bookings/cancel/:id", async (req, res) => {
-  try {
-    const bookingId = req.params.id;
-    const bookingDoc = await collection.doc(bookingId).get();
-
-    if (!bookingDoc.exists) {
-      return res.status(404).send("Booking not found");
-    }
-
-    await collection.doc(bookingId).delete();
-    res.status(200).send("Booking canceled successfully");
-  } catch (error) {
-    console.error("Error canceling booking:", error); // Log lỗi
-    res.status(500).send("Error canceling booking: " + error.message);
+    console.error("Error fetching seats:", error);
+    res.status(500).send("Error fetching seats: " + error.message);
   }
 });
 
