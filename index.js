@@ -167,7 +167,7 @@ app.delete("/bookings/cancel/:id", async (req, res) => {
 });
 
 // Chạy server với port online hoặc 5000 local
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
